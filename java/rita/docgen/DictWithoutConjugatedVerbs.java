@@ -16,7 +16,8 @@ public class DictWithoutConjugatedVerbs {
 
   static String DICT_FILE = "js/src/rita_dict.js";
   static String OUTPUT_FILE = "/tmp/rita_dict_new.js"; // change me
-  static HashMap<String, String[]> rdata = parseRiTaDict(RiTa.loadStrings(DICT_FILE));
+  static HashMap<String, String[]> rdata = parseRiTaDict(
+      RiTa.loadStrings(DICT_FILE));
 
   static String header, footer;
   static int matches = 0;
@@ -24,17 +25,16 @@ public class DictWithoutConjugatedVerbs {
   static int entries = 0;
   static int ignored = 0;
   static int added = 0;
-
-  static Matcher dublicateLetter;
+  static int moreItems = 0;
 
   public static void main(String[] args) {
-
-    SortedMap newdata = generate(rdata);
+    SortedMap newdata = tidyUp(rdata);
+    // SortedMap newdata = generate(rdata);
     System.out.println("--------------------");
     System.out.println("Original entries : " + rdata.size());
     System.out.println("Matches : " + matches);
     System.out.println("Ignore : " + ignored);
-    System.out.println("Added : " + added);
+    System.out.println("Added : " + added + "," + moreItems);
     System.out.println("Deleted : " + deleted);
     System.out.println("Entries left : " + entries);
 
@@ -42,6 +42,51 @@ public class DictWithoutConjugatedVerbs {
 
     System.out
 	.println("Wrote: " + writeToFile(OUTPUT_FILE, mapToString(newdata)));
+  }
+
+  private static SortedMap tidyUp(HashMap rdata) {
+    SortedMap<String, String> newdata = new TreeMap<String, String>();
+    for (Iterator<String> it = rdata.keySet().iterator(); it.hasNext();) {
+      String word = it.next();
+      String[] rval = (String[]) rdata.get(word);
+      String phones = rval[0];
+      String pos = rval[1];
+
+      if (hasTag(pos, "nns")) {
+	 matches++;
+	  String vb = word.replaceAll("s$", "");
+	  if(vb.equals(word))  {
+	 
+	    //irregular plurals  DONE 
+	  }
+	  if (rdata.containsKey(vb)) {
+	   
+          System.err.println(word + " " + pos);
+	  deleted++; 
+	  continue;
+	  
+	  }else{
+	    System.err.println(word + " " + pos);
+	  added++;
+//	  System.err.println(word + " " + pos);
+	  }
+
+      }
+    newdata.put(word, "['" + phones + "','" + pos + "']");
+
+    }
+
+    return newdata;
+
+  }
+
+  private static boolean hasTag(String pos, String tag) {
+    String[] tags = pos.split(" ");
+    for (int i = 0; i < tags.length; i++) {
+      if (tags[i].equals(tag))
+	return true;
+    }
+    return false;
   }
 
   private static SortedMap generate(HashMap rdata) {
@@ -70,14 +115,21 @@ public class DictWithoutConjugatedVerbs {
 	    // 3 Cases vb || vb+ 'e' || vb with last letter repeated
 
 	  } else {
-	    System.out.println("[NEED ENTRY!]:" + vb + " " + word + " " + pos);
+	    // System.out.println("[NEED ENTRY!]:" + vb + " " + word + " " +
+	    // pos);
+	    String value = word;
 	    if (newEntryList.containsKey(vb)) {
-	      String newValue = newEntryList.get(vb) + "|" + word + " " + pos;
+	      // verb base with more than one reference
+	      if (!newEntryList.get(vb).contains("|"))
+		moreItems++;
+
+	      String newValue = newEntryList.get(vb) + " " + value;
 	      newEntryList.replace(vb, newValue);
+
 	    } else {
-	      newEntryList.put(vb, word + " " + pos);
+	      newEntryList.put(vb, value);
 	      added++;
-	      // how to know the exact vb?? the right syll?
+
 	    }
 
 	  }
@@ -96,7 +148,10 @@ public class DictWithoutConjugatedVerbs {
 
     }
 
-    // System.out.println(mapToString(newEntryList));
+    System.out.println(mapToString(newEntryList));
+    // Total entries needed: 720
+    // verb base with more entries 120
+    // But how to know the exact vb??And the right syll?
 
     return newdata;
   }
@@ -119,14 +174,6 @@ public class DictWithoutConjugatedVerbs {
     return rita;
   }
 
- private static void printList(SortedMap list) {
-    for (Iterator<String> i = list.keySet().iterator(); i.hasNext();) {
-      String key = i.next();
-      String value = (String) list.get(i);
-      System.out.println(key + " => " + value);
-    }
-  }
-
   static String writeToFile(String fname, String content) {
     try {
       FileWriter fw = new FileWriter(fname);
@@ -139,7 +186,8 @@ public class DictWithoutConjugatedVerbs {
     return fname;
   }
 
-  private static boolean endsWithItemFromList(String inputString, String[] items) {
+  private static boolean endsWithItemFromList(String inputString,
+      String[] items) {
     for (int i = 0; i < items.length; i++) {
       if (inputString.endsWith(items[i])) {
 	return true;
@@ -149,12 +197,12 @@ public class DictWithoutConjugatedVerbs {
   }
 
   private static String mapToString(SortedMap newdata) {
-
+    
     StringBuilder sb = new StringBuilder();
-    sb.append(header + "\n");
+    sb.append(header+"\n");
     for (Iterator<String> it = newdata.keySet().iterator(); it.hasNext();) {
       String word = it.next();
-      sb.append("'" + word + "':" + newdata.get(word));
+      sb.append("'"+word+"':"+newdata.get(word));
       sb.append(it.hasNext() ? ",\n" : "\n");
     }
     sb.append(footer);
@@ -195,31 +243,31 @@ public class DictWithoutConjugatedVerbs {
     String stem = rita.RiTa.stem(word, RiTa.PORTER);
     vb = stem;
 
+    // //
+    // String[] endings = { "ent", "ion", "er", "ate", "ize" };
+    //
+    // String[] exceptions = new String[endings.length * 3];
+    // for (int i = 0; i < endings.length; i++) {
+    // String ending = endings[i];
+    // if (endings[i].endsWith("e"))
+    // ending = endings[i].replaceAll("e$", "");
+    // exceptions[3 * i] = ending + "s";
+    // exceptions[3 * i + 1] = ending + "ing";
+    // exceptions[3 * i + 2] = ending + "ed";
+    // }
+    //
+    // if (endsWithItemFromList(word, exceptions)) vb = word.replaceAll("ed$",
+    // "");
+
     if (word.endsWith("ating") || word.endsWith("izing"))
-      vb = word.replaceAll("ing$", "e");
+      vb = word.replaceAll("ing$", "");
     if (word.endsWith("ates") || word.endsWith("izes"))
-      vb = word.replaceAll("s$", "");
+      vb = word.replaceAll("es$", "");
     if (word.endsWith("ated") || word.endsWith("ized"))
-      vb = word.replaceAll("d$", "");
+      vb = word.replaceAll("ed$", "");
 
-//    // ent, tion,er
-//    String[] endings = { "ent", "ion", "er", "ate", "ize" };
-//
-//    String[] exceptions = new String[endings.length * 3];
-//    for (int i = 0; i < endings.length; i++) {
-//      String ending = endings[i];
-//      if (endings[i].endsWith("e"))
-//	ending = endings[i].replaceAll("e$", "");
-//      exceptions[3 * i] = ending + "s";
-//      exceptions[3 * i + 1] = ending + "ing";
-//      exceptions[3 * i + 2] = ending + "ed";
-//    }
-//
-//    if (endsWithItemFromList(word, exceptions)) vb = word.replaceAll("ed$", "");
-
-      if (word.endsWith("ents") || word.endsWith("ions")
-	  || word.endsWith("ers"))
-	vb = word.replaceAll("s$", "");
+    if (word.endsWith("ents") || word.endsWith("ions") || word.endsWith("ers"))
+      vb = word.replaceAll("s$", "");
 
     if (word.endsWith("ented") || word.endsWith("ioned")
 	|| word.endsWith("ered"))
@@ -232,6 +280,9 @@ public class DictWithoutConjugatedVerbs {
     // beautify -> beautified
     if (vb.endsWith("i"))
       vb = vb.replaceAll("i$", "y");
+
+    // if(pos.contains("vbp"))
+    // System.out.println("[VBP] " + word + " " + vb + " " + pos);
 
     return vb;
   }
