@@ -30,8 +30,8 @@ public class DictWithoutConjugatedVerbs {
   static int moreItems = 0;
 
   public static void main(String[] args) {
-    SortedMap newdata = tidyUp(rdata);
-    // SortedMap newdata = generate(rdata);
+//    SortedMap newdata = tidyUp(rdata);
+    SortedMap newdata = generate(rdata);
     System.out.println("--------------------");
     System.out.println("Original entries : " + rdata.size());
     System.out.println("Matches : " + matches);
@@ -103,57 +103,13 @@ public class DictWithoutConjugatedVerbs {
       String[] rval = (String[]) rdata.get(word);
       String phones = rval[0];
       String pos = rval[1];
-
-      // Step 1 Add Verb Base Form
-      // all entries that contains vb* tags, no vb in tags Total: 8584
-      if (pos.contains("vb") && !pos.contains("vb ") && !pos.endsWith("vb")) {
-	matches++;
-
-	String vb = getVerbBaseForm(word, pos);
-	if (vb.equals(word)) {
-	  // System.err.println("[IGNORE!] Irregular Verb:" + word + " " + pos);
-	  ignored++;
-	} else {
-
-	  if (rdata.containsKey(vb) || rdata.containsKey(vb + "e")
-	      || rdata.containsKey(vb + vb.charAt(vb.length() - 1))) {
-	    // 3 Cases vb || vb+ 'e' || vb with last letter repeated
-
-	  } else {
-	    // System.out.println("[NEED ENTRY!]:" + vb + " " + word + " " +
-	    // pos);
-	    String value = word;
-	    if (newEntryList.containsKey(vb)) {
-	      // verb base with more than one reference
-	      if (!newEntryList.get(vb).contains("|"))
-		moreItems++;
-
-	      String newValue = newEntryList.get(vb) + " " + value;
-	      newEntryList.replace(vb, newValue);
-
-	    } else {
-	      newEntryList.put(vb, value);
-	      added++;
-
-	    }
-
-	  }
-	}
+      
+      if(pos.contains("vbg") || pos.contains("vbn") || pos.contains("vbd")){
+	matches ++;
+	System.out.println("[DELETE]" + word + " " + pos);
       }
-
-      // TO DO : Step 2 Delete
-      //
-      // if (!isConjugatedVerb(rdata, word, rval[1])) {
-      // newdata.put(word, "['" + phones + "','" + pos + "']");
-      // entries++;
-      // } else {
-      // // System.out.println("[Delete] " + word + ":" + pos );
-      // deleted++;
-      // }
-
+	
     }
-
-    System.out.println(mapToString(newEntryList));
     // Total entries needed: 720
     // verb base with more entries 120
     // But how to know the exact vb??And the right syll?
