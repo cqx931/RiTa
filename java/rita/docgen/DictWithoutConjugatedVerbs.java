@@ -13,8 +13,10 @@ import java.util.regex.Pattern;
 import rita.RiTa;
 
 public class DictWithoutConjugatedVerbs {
-
+  
+  static String WORD_FILE = "js/src/list.txt";
   static String DICT_FILE = "js/src/rita_dict.js";
+  static String SYLL_FILE = "js/src/cmudict-0.7b";
   static String OUTPUT_FILE = "/tmp/rita_dict_new.js"; // change me
   static HashMap<String, String[]> rdata = parseRiTaDict(
       RiTa.loadStrings(DICT_FILE));
@@ -45,33 +47,36 @@ public class DictWithoutConjugatedVerbs {
   }
 
   private static SortedMap tidyUp(HashMap rdata) {
+    String[] words = RiTa.loadStrings(WORD_FILE);
+    String[] cwords = RiTa.loadStrings(SYLL_FILE);    
+    HashMap<String, String> cdata = parseCMU(cwords);
     SortedMap<String, String> newdata = new TreeMap<String, String>();
+    
+//    for (int i = 0; i < words.length; i++) {
+//      String word = words[i].toLowerCase();
+//      String cmuPhones = cdata.get(word);
+//      if(cmuPhones == null){
+//	 System.err.println(word);
+//	 ignored++;
+//      }else{
+////	System.out.println(word + " " + cmuPhones);
+//	 cmuPhones = cmuPhones.replaceAll("[02]", "");
+//	 newdata.put(word, "['"+cmuPhones+"','vb']");
+//	added++;
+//      }
+//      matches++;
+//    }
+  
     for (Iterator<String> it = rdata.keySet().iterator(); it.hasNext();) {
       String word = it.next();
       String[] rval = (String[]) rdata.get(word);
       String phones = rval[0];
       String pos = rval[1];
-
+      
       if (hasTag(pos, "nns")) {
-	 matches++;
-	  String vb = word.replaceAll("s$", "");
-	  if(vb.equals(word))  {
-	 
-	    //irregular plurals  DONE 
-	  }
-	  if (rdata.containsKey(vb)) {
-	   
-          System.err.println(word + " " + pos);
-	  deleted++; 
-	  continue;
-	  
-	  }else{
-	    System.err.println(word + " " + pos);
-	  added++;
-//	  System.err.println(word + " " + pos);
-	  }
-
+	System.err.println(word + " " + pos);
       }
+      
     newdata.put(word, "['" + phones + "','" + pos + "']");
 
     }
@@ -238,6 +243,20 @@ public class DictWithoutConjugatedVerbs {
     return false;
   }
 
+  private static HashMap<String, String> parseCMU(String[] words) {
+    
+    HashMap<String, String> cmu = new HashMap<String, String>();
+    for (int i = 0; i < words.length; i++) {
+      String[] parts = words[i].toLowerCase().trim().split("  +");
+      if (parts.length != 2)
+	throw new RuntimeException("Bad line: "+words[i]);
+      String word = parts[0].trim(), value = parts[1].trim();
+      String sylls = value.replaceAll(" - ", "/").replaceAll(" ", "-").replaceAll("/", " ");
+      cmu.put(word, sylls);
+    }
+    return cmu;
+  }
+  
   public static String getVerbBaseForm(String word, String pos) {
     String vb = "";
     String stem = rita.RiTa.stem(word, RiTa.PORTER);
